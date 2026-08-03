@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Fitness Roguelike v0.1</title>
+<style>
+  :root {
+    --ink: #111;
+    --mid: #555;
+    --faint: #888;
+    --rule: #ccc;
+    --panel: #f0f0f0;
+    --panel2: #e4e4e4;
+    --bg: #fafafa;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 17px; line-height: 1.4;
+    -webkit-text-size-adjust: 100%;
+  }
+  #app { max-width: 520px; margin: 0 auto; padding: 14px 14px 40px; }
+
+  h1 { font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+       margin: 0 0 10px; color: var(--mid); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .stat { background: var(--panel); padding: 8px 10px; }
+  .stat .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .stat .v { font-size: 22px; font-weight: 700; }
+
+  .ante { background: var(--ink); color: #fff; padding: 12px; margin-bottom: 14px; text-align: center; }
+  .ante .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+  .ante .v { font-size: 30px; font-weight: 700; }
+
+  .alloc { border-top: 2px solid var(--ink); padding-top: 12px; }
+  .row { margin-bottom: 16px; }
+  .rowhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .rowhead .label { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+  .rowhead .yield { font-size: 13px; color: var(--mid); }
+  .ctrl { display: flex; align-items: center; gap: 8px; }
+  button {
+    font-family: inherit; font-size: 22px; font-weight: 700;
+    background: var(--panel2); color: var(--ink); border: 1px solid var(--rule);
+    min-width: 56px; height: 52px; cursor: pointer;
+  }
+  button:active { background: var(--ink); color: #fff; }
+  button:disabled { opacity: .35; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  input[type=range] { flex: 1; height: 52px; accent-color: #333; }
+  .hrs { min-width: 62px; text-align: right; font-size: 22px; font-weight: 700; }
+
+  .sleep { background: var(--panel); padding: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .sleep .label { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+  .sleep .v { font-size: 22px; font-weight: 700; }
+
+  .proj { border: 1px dashed var(--rule); padding: 10px; margin: 12px 0; font-size: 14px; color: var(--mid); }
+  .proj div { display: flex; justify-content: space-between; }
+  .proj b { color: var(--ink); }
+
+  .end { width: 100%; height: 62px; font-size: 18px; letter-spacing: .1em; background: var(--ink); color: #fff; border: none; }
+  .end:active { background: var(--mid); }
+
+  .log { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 10px; }
+  .log h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px; font-weight: 700; }
+  .log p { margin: 0 0 4px; font-size: 13px; color: var(--mid); }
+
+  .over { text-align: center; padding-top: 30px; }
+  .over .verdict { font-size: 40px; font-weight: 700; letter-spacing: .06em; }
+  .over .detail { margin: 18px 0; font-size: 17px; }
+  .over .detail div { margin-bottom: 6px; }
+  .warn { color: var(--ink); font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================================================
+   CONFIG — every balance number lives here. Change one at a time.
+   ============================================================ */
+const CONFIG = {
+  HOURS_PER_DAY:            24,    // total hours split between work, train, sleep
+  FINAL_ROUND:              20,    // survive past this round to win
+  STARTING_DOLLARS:         40,
+  STARTING_ENERGY_CAP:      12,    // max energy you can hold
+  STARTING_ENERGY:          12,
+
+  ENERGY_PER_HOUR:          1,     // energy burned per hour of work OR train
+  DOLLARS_PER_WORK_HOUR:    4,
+  TRAIN_POINTS_PER_HOUR:    1,
+  TRAIN_POINTS_PER_LEVEL:   3,     // points needed to gain a Capacity Level
+  ENERGY_CAP_PER_LEVEL:     1,     // cap gained per Capacity Level
+
+  BASE_RECOVERY_PER_SLEEP_HOUR: 0.75, // energy returned per hour slept at Level 1
+  RECOVERY_PER_LEVEL:           0.10, // extra energy per sleep hour, per Capacity Level
+
+  ANTE_START:               20,
+  ANTE_GROWTH:              6
+};
+/* ============================================================ */
+
+let S;
+
+function newRun() {
+  S = {
+    round: 1,
+    dollars: CONFIG.STARTING_DOLLARS,
+    energy: CONFIG.STARTING_ENERGY,
+    energyCap: CONFIG.STARTING_ENERGY_CAP,
+    capacity: 1,
+    points: 0,
+    work: 0,
+    train: 0,
+    log: [],
+    finished: false,
+    won: false
+  };
+}
+
+const ante = r => CONFIG.ANTE_START + CONFIG.ANTE_GROWTH * (r - 1);
+const recoveryAt = lvl => CONFIG.BASE_RECOVERY_PER_SLEEP_HOUR + CONFIG.RECOVERY_PER_LEVEL * (lvl - 1);
+const maxHours = () => Math.min(CONFIG.HOURS_PER_DAY, Math.floor(S.energy / CONFIG.ENERGY_PER_HOUR));
+const round1 = n => Math.round(n * 10) / 10;
+
+// What the current allocation would produce, without committing to it.
+function preview() {
+  const spent = S.work + S.train;
+  const sleep = CONFIG.HOURS_PER_DAY - spent;
+  const earned = S.work * CONFIG.DOLLARS_PER_WORK_HOUR;
+
+  let pts = S.points + S.train * CONFIG.TRAIN_POINTS_PER_HOUR;
+  let lvl = S.capacity, cap = S.energyCap;
+  while (pts >= CONFIG.TRAIN_POINTS_PER_LEVEL) {
+    pts -= CONFIG.TRAIN_POINTS_PER_LEVEL;
+    lvl += 1;
+    cap += CONFIG.ENERGY_CAP_PER_LEVEL;
+  }
+
+  const due = ante(S.round);
+  const dollarsAfter = S.dollars + earned - due;
+  const energyLeft = S.energy - spent * CONFIG.ENERGY_PER_HOUR;
+  const nextEnergy = Math.min(cap, energyLeft + sleep * recoveryAt(lvl));
+
+  return { spent, sleep, earned, pts, lvl, cap, due, dollarsAfter, nextEnergy };
+}
+
+function clampAlloc() {
+  const cap = maxHours();
+  if (S.work + S.train > cap) S.train = Math.max(0, cap - S.work);
+  if (S.work > cap) { S.work = cap; S.train = 0; }
+}
+
+function setHours(which, val) {
+  const cap = maxHours();
+  const other = which === 'work' ? S.train : S.work;
+  S[which] = Math.max(0, Math.min(val, cap - other));
+  render();
+}
+
+function endRound() {
+  const p = preview();
+
+  S.dollars += p.earned;
+  S.points = p.pts;
+  S.capacity = p.lvl;
+  S.energyCap = p.cap;
+  S.dollars -= p.due;
+
+  S.log.unshift(
+    'R' + S.round + ' · work ' + S.work + ' / train ' + S.train + ' / sleep ' + p.sleep +
+    ' · +$' + p.earned + ' · ante $' + p.due + ' · left $' + S.dollars +
+    ' · Lv' + S.capacity + ' · E' + round1(Math.max(0, p.nextEnergy))
+  );
+  S.log = S.log.slice(0, 6);
+
+  if (S.dollars < 0) { S.finished = true; S.won = false; render(); return; }
+
+  S.energy = p.nextEnergy;
+  S.round += 1;
+  S.work = 0; S.train = 0;
+
+  if (S.round > CONFIG.FINAL_ROUND) { S.finished = true; S.won = true; }
+  render();
+}
+
+function render() {
+  const app = document.getElementById('app');
+
+  if (S.finished) {
+    app.innerHTML =
+      '<div class="over">' +
+        '<div class="verdict">' + (S.won ? 'SURVIVED' : 'BROKE') + '</div>' +
+        '<div class="detail">' +
+          '<div>Ended on round ' + Math.min(S.round, CONFIG.FINAL_ROUND) + ' of ' + CONFIG.FINAL_ROUND + '</div>' +
+          '<div>Final Capacity Level ' + S.capacity + '</div>' +
+          '<div>Dollars ' + S.dollars + '</div>' +
+        '</div>' +
+        '<button class="end" id="again">PLAY AGAIN</button>' +
+        logHTML() +
+      '</div>';
+    document.getElementById('again').onclick = () => { newRun(); render(); };
+    return;
+  }
+
+  clampAlloc();
+  const p = preview();
+  const cap = maxHours();
+  const shortSleep = p.sleep < 8;
+
+  app.innerHTML =
+    '<h1>Fitness Roguelike v0.1</h1>' +
+
+    '<div class="stats">' +
+      stat('Round', S.round + ' / ' + CONFIG.FINAL_ROUND) +
+      stat('Dollars', '$' + S.dollars) +
+      stat('Energy', round1(S.energy) + ' / ' + S.energyCap) +
+      stat('Capacity', 'Lv ' + S.capacity + '  (' + S.points + '/' + CONFIG.TRAIN_POINTS_PER_LEVEL + ')') +
+    '</div>' +
+
+    '<div class="ante"><div class="k">Ante due this round</div><div class="v">$' + p.due + '</div></div>' +
+
+    '<div class="alloc">' +
+      hourRow('work', 'Work', S.work, cap - S.train, '$' + CONFIG.DOLLARS_PER_WORK_HOUR + ' / hr') +
+      hourRow('train', 'Train', S.train, cap - S.work, CONFIG.TRAIN_POINTS_PER_HOUR + ' pt / hr') +
+      '<div class="sleep"><span class="label">Sleep (remainder)</span>' +
+        '<span class="v' + (shortSleep ? ' warn' : '') + '">' + p.sleep + ' hr</span></div>' +
+    '</div>' +
+
+    '<div class="proj">' +
+      '<div><span>Earn this round</span><b>+$' + p.earned + '</b></div>' +
+      '<div><span>Dollars after ante</span><b>$' + p.dollarsAfter + '</b></div>' +
+      '<div><span>Energy next round</span><b>' + round1(p.nextEnergy) + ' / ' + p.cap + '</b></div>' +
+      (p.lvl > S.capacity ? '<div><span>Capacity</span><b>Level ' + p.lvl + '</b></div>' : '') +
+    '</div>' +
+
+    '<button class="end" id="endbtn">END ROUND</button>' +
+    logHTML();
+
+  document.getElementById('endbtn').onclick = endRound;
+
+  ['work', 'train'].forEach(k => {
+    document.getElementById(k + '-minus').onclick = () => setHours(k, S[k] - 1);
+    document.getElementById(k + '-plus').onclick  = () => setHours(k, S[k] + 1);
+    const sl = document.getElementById(k + '-range');
+    sl.oninput = e => setHours(k, parseInt(e.target.value, 10));
+  });
+}
+
+function stat(k, v) {
+  return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+}
+
+function hourRow(id, label, val, max, yield_) {
+  const hi = Math.max(0, max);
+  return '<div class="row">' +
+    '<div class="rowhead"><span class="label">' + label + '</span><span class="yield">' + yield_ + '</span></div>' +
+    '<div class="ctrl">' +
+      '<button id="' + id + '-minus"' + (val <= 0 ? ' disabled' : '') + '>&minus;</button>' +
+      '<input type="range" id="' + id + '-range" min="0" max="' + hi + '" value="' + val + '" step="1">' +
+      '<button id="' + id + '-plus"' + (val >= hi ? ' disabled' : '') + '>+</button>' +
+      '<span class="hrs">' + val + 'h</span>' +
+    '</div>' +
+  '</div>';
+}
+
+function logHTML() {
+  if (!S.log.length) return '';
+  return '<div class="log"><h2>Recent rounds</h2>' +
+    S.log.map(l => '<p>' + l + '</p>').join('') + '</div>';
+}
+
+newRun();
+render();
+</script>
+</body>
+</html>
