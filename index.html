@@ -4,374 +4,418 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>Fitness Roguelike v0.1</title>
+<title>Stress — v0.2</title>
 <style>
-  :root {
-    --ink: #111;
-    --mid: #555;
-    --faint: #888;
-    --rule: #ccc;
-    --panel: #f0f0f0;
-    --panel2: #e4e4e4;
-    --bg: #fafafa;
-    --bar-fill: #999;
-    --bar-drain: #111;
-    --bar-track: #ddd;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin: 0; padding: 0;
-    background: var(--bg); color: var(--ink);
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 17px; line-height: 1.4;
-    -webkit-text-size-adjust: 100%;
-  }
-  #app { max-width: 520px; margin: 0 auto; padding: 14px 14px 40px; }
+  :root{--ink:#111;--mid:#555;--faint:#888;--rule:#ccc;--panel:#f0f0f0;--panel2:#e4e4e4;--bg:#fafafa;
+        --stress:#111;--spend:#8a8a8a;--slack:#dcdcdc;--track:#ececec;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:17px;line-height:1.4;
+    -webkit-text-size-adjust:100%}
+  #app{max-width:520px;margin:0 auto;padding:12px 14px 40px}
 
-  h1 { font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-       margin: 0 0 10px; color: var(--mid); }
+  .top{position:sticky;top:0;background:var(--bg);padding:8px 0 10px;z-index:5;border-bottom:2px solid var(--ink);margin-bottom:14px}
+  .agerow{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--faint);margin-bottom:5px}
+  .agerow b{color:var(--ink);font-size:13px;letter-spacing:0;text-transform:none}
+  .bar{position:relative;height:30px;background:var(--track);border:1px solid var(--rule);overflow:hidden}
+  .bar div{position:absolute;top:0;height:100%;transition:width .12s linear,left .12s linear}
+  .bStress{left:0;background:var(--stress)}
+  .bSpend{background:var(--spend)}
+  .bSlack{background:var(--slack)}
+  .barkey{display:flex;gap:12px;font-size:11px;color:var(--faint);margin-top:4px;flex-wrap:wrap}
+  .barkey i{font-style:normal}
+  .sw{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px;border:1px solid var(--rule)}
 
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
-  .stat { background: var(--panel); padding: 8px 10px; }
-  .stat .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
-  .stat .v { font-size: 22px; font-weight: 700; }
+  .stagelabel{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+  h2{font-size:20px;margin:0 0 12px;font-weight:700}
 
-  .rent { background: var(--ink); color: #fff; padding: 12px; margin-bottom: 14px; text-align: center; }
-  .rent .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
-  .rent .v { font-size: 30px; font-weight: 700; }
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+  .stat{background:var(--panel);padding:7px 9px}
+  .stat .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .stat .v{font-size:19px;font-weight:700}
+  .stat .v.bad{color:#900}
 
-  /* Energy bar — decorative, sits above the sliders, drains live as you drag */
-  .ebar-wrap { margin-bottom: 16px; }
-  .ebar-head { display: flex; justify-content: space-between; font-size: 11px;
-               letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-bottom: 4px; }
-  .ebar-head b { color: var(--ink); font-size: 13px; letter-spacing: 0; text-transform: none; }
-  .ebar { position: relative; height: 22px; background: var(--bar-track); overflow: hidden; border: 1px solid var(--rule); }
-  .ebar .fill  { position: absolute; top: 0; left: 0; height: 100%; background: var(--bar-fill); transition: width .12s linear; }
-  .ebar .drain { position: absolute; top: 0; height: 100%; background: var(--bar-drain); transition: width .12s linear, left .12s linear; }
-  .ebar .zeroline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); }
+  .card{border:1px solid var(--rule);background:#fff;padding:11px;margin-bottom:9px;cursor:pointer}
+  .card.sel{border:2px solid var(--ink);background:var(--panel)}
+  .card.dis{opacity:.4;cursor:default}
+  .card .ct{font-size:15px;font-weight:700;display:flex;justify-content:space-between}
+  .card .cd{font-size:13px;color:var(--mid);margin-top:3px}
 
-  .alloc { border-top: 2px solid var(--ink); padding-top: 12px; }
-  .row { margin-bottom: 16px; }
-  .rowhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-  .rowhead .label { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
-  .rowhead .yield { font-size: 13px; color: var(--mid); }
-  .ctrl { display: flex; align-items: center; gap: 8px; }
-  button {
-    font-family: inherit; font-size: 22px; font-weight: 700;
-    background: var(--panel2); color: var(--ink); border: 1px solid var(--rule);
-    min-width: 56px; height: 52px; cursor: pointer;
-  }
-  button:active { background: var(--ink); color: #fff; }
-  button:disabled { opacity: .35; cursor: default; }
-  button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-  input[type=range] { flex: 1; height: 52px; accent-color: #333; }
-  .hrs { min-width: 62px; text-align: right; font-size: 22px; font-weight: 700; }
-  .note { font-size: 12px; color: var(--faint); margin-top: 2px; }
+  .row{margin-bottom:14px}
+  .rowhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
+  .rowhead .label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+  .rowhead .yield{font-size:12px;color:var(--mid)}
+  .ctrl{display:flex;align-items:center;gap:7px}
+  button{font-family:inherit;font-size:20px;font-weight:700;background:var(--panel2);color:var(--ink);
+    border:1px solid var(--rule);min-width:50px;height:48px;cursor:pointer}
+  button:active{background:var(--ink);color:#fff}
+  button:disabled{opacity:.3;cursor:default}
+  button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  input[type=range]{flex:1;height:48px;accent-color:#333}
+  .hrs{min-width:74px;text-align:right;font-size:17px;font-weight:700}
 
-  .sleep { background: var(--panel); padding: 10px; display: flex; justify-content: space-between; align-items: baseline; }
-  .sleep .label { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
-  .sleep .v { font-size: 22px; font-weight: 700; }
+  .proj{border:1px dashed var(--rule);padding:10px;margin:12px 0;font-size:13px;color:var(--mid)}
+  .proj div{display:flex;justify-content:space-between;margin-bottom:2px}
+  .proj b{color:var(--ink)}
+  .proj b.bad{color:#900}
 
-  .proj { border: 1px dashed var(--rule); padding: 10px; margin: 12px 0; font-size: 14px; color: var(--mid); }
-  .proj div { display: flex; justify-content: space-between; }
-  .proj b { color: var(--ink); }
-  .proj b.down { color: #900; }
+  .go{width:100%;height:58px;font-size:17px;letter-spacing:.1em;background:var(--ink);color:#fff;border:none;margin-top:4px}
+  .go:active{background:var(--mid)}
+  .ghost{width:100%;height:48px;font-size:14px;letter-spacing:.06em;margin-top:8px}
 
-  .end { width: 100%; height: 62px; font-size: 18px; letter-spacing: .1em; background: var(--ink); color: #fff; border: none; }
-  .end:active { background: var(--mid); }
+  .log{margin-top:20px;border-top:1px solid var(--rule);padding-top:10px}
+  .log h3{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 0 6px;font-weight:700}
+  .log p{margin:0 0 4px;font-size:12px;color:var(--mid)}
 
-  .log { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 10px; }
-  .log h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px; font-weight: 700; }
-  .log p { margin: 0 0 4px; font-size: 13px; color: var(--mid); }
-
-  .over { text-align: center; padding-top: 30px; }
-  .over .verdict { font-size: 40px; font-weight: 700; letter-spacing: .06em; }
-  .over .detail { margin: 18px 0; font-size: 17px; }
-  .over .detail div { margin-bottom: 6px; }
-  .warn { color: #900; font-weight: 700; }
+  .over{text-align:center;padding-top:24px}
+  .over .verdict{font-size:34px;font-weight:700;letter-spacing:.05em;line-height:1.15}
+  .over .sub{font-size:14px;color:var(--mid);margin-top:6px}
+  .over .detail{margin:18px 0;font-size:16px}
+  .over .detail div{margin-bottom:5px}
 </style>
 </head>
 <body>
 <div id="app"></div>
-
 <script>
-/* ============================================================
-   CONFIG — every balance number lives here. Change one at a time.
-   ============================================================ */
+/* =========================================================================
+   CONFIG — all balance numbers. Change ONE per playtest session.
+   ========================================================================= */
 const CONFIG = {
-  HOURS_PER_DAY:              24,   // the whole day, for accounting only
+  START_AGE: 20, YEARS_PER_ROUND: 5, ROUNDS: 10,   // ages 20 -> 70
 
-  BASELINE_WORK_HOURS:        8,    // your day job. Fixed. Not a slider.
-  BASELINE_DOLLARS:           16,   // what the day job pays, every round, no matter what
-  BASELINE_ENERGY_COST:       4,    // energy the day job costs you, every round
+  BASE_BAR: 100,              // total bar width at 0 muscle
+  BAR_PER_MUSCLE: 1,          // muscle widens the bar (the engine)
+  START_STRESS: 12,
+  START_DOLLARS: 300,
+  START_BODYFAT: 18,
+  START_MUSCLE: 10,
 
-  OVERTIME_MIN:               0,    // extra hours on top of the day job
-  OVERTIME_MAX:                8,
-  DOLLARS_PER_OVERTIME_HOUR:  4,
-  ENERGY_PER_OVERTIME_HOUR:   1,
+  // Stress floor added every round; steps up each decade (= every 2 rounds)
+  STRESS_BASE_START: 6,
+  STRESS_DECADE_STEP: 2,
 
-  ENERGY_PER_TRAIN_HOUR:      1,
-  TRAIN_MAINTAIN_HOURS:       1,    // this many hours holds your Capacity steady
-  TRAIN_POINTS_PER_HOUR:      1,    // progress earned per hour ABOVE maintenance
-  TRAIN_POINTS_PER_LEVEL:     3,    // points needed to gain (or lose) a Capacity Level
-  ENERGY_CAP_PER_LEVEL:       1,    // energy cap change per Capacity Level
-  DETRAIN_POINTS_LOSS:        1,    // points lost per round when you train 0 hours
+  // Body composition band
+  BF_HIGH: 20, BF_LOW: 10,
+  BF_PENALTY_STRESS: 5,
+  ENERGY_PER_BF_POINT: 20,    // surplus/deficit energy needed to move 1% bodyfat
 
-  PERSONAL_TIME_HOURS:        2,    // invisible — family/life, always taken off the top
-  SLEEP_MIN:                  2,
-  SLEEP_MAX:                  9,
+  // Job
+  JOB_LEVELS: [
+    {name:'Warehouse',  pay:400,  energy:30, stress:0},
+    {name:'Supervisor', pay:640,  energy:36, stress:3, cost:900},
+    {name:'Manager',    pay:980,  energy:44, stress:7, cost:2200}
+  ],
 
-  BASE_RECOVERY_PER_SLEEP_HOUR: 0.75, // energy returned per hour slept, at Level 1
-  RECOVERY_PER_LEVEL:           0.10, // extra energy per sleep hour, per Capacity Level
+  // Work dial: negative = time off, positive = overtime
+  TIMEOFF_MAX: 4, OVERTIME_MAX: 8,
+  OT_PAY: 60, OT_ENERGY: 8, OT_STRESS: 3,
+  TIMEOFF_LOSTPAY: 70, TIMEOFF_STRESS: 6,
 
-  STARTING_DOLLARS:           40,
-  STARTING_ENERGY_CAP:        12,
-  STARTING_ENERGY:            12,
+  // Training tiers
+  TRAINING: [
+    {name:'None',     energy:0,  stress:0,  muscle:-3, note:'engine decays'},
+    {name:'Light',    energy:10, stress:-8, muscle:0,  note:'maintains, relieves stress'},
+    {name:'Moderate', energy:22, stress:-4, muscle:2,  note:'builds, relieves stress'},
+    {name:'High',     energy:36, stress:6,  muscle:4,  note:'builds hard, adds stress'}
+  ],
 
-  RENT_START:                 20,
-  RENT_GROWTH:                6,
-  FINAL_ROUND:                20     // survive past this round to win
+  // Diet
+  DIETS: [
+    {name:'Fast Food', cost:80,  energy:100, upfront:0,  protein:false, note:'cheap, floods you with energy'},
+    {name:'Healthy',   cost:230, energy:60,  upfront:0,  protein:true,  note:'expensive, clean, no effort'},
+    {name:'Cook',      cost:110, energy:60,  upfront:12, protein:true,  note:'cheap and clean, costs energy'}
+  ],
+
+  // Upgrades
+  SPOUSES: [
+    {name:'Supportive', cost:600, note:'-6 stress every round',        stress:-6, pay:0,   trainMult:1},
+    {name:'Driven',     cost:600, note:'+$180 a round, +3 stress',     stress:3,  pay:180, trainMult:1},
+    {name:'Athletic',   cost:600, note:'training costs 25% less energy',stress:-2, pay:0,  trainMult:0.75}
+  ],
+  GYMS: [
+    {name:'Home setup', cost:500,  note:'training costs 15% less energy', trainMult:0.85, muscleBonus:0},
+    {name:'Full gym',   cost:1200, note:'+1 muscle whenever you build',   trainMult:0.85, muscleBonus:1}
+  ],
+
+  HEALTHY_MUSCLE_MIN: 16      // needed for a "healthy" retirement, alongside bodyfat in band
 };
-/* ============================================================ */
+/* ========================================================================= */
 
 let S;
+function newRun(){
+  S={ round:1, stage:'diet', dollars:CONFIG.START_DOLLARS, stress:CONFIG.START_STRESS,
+      bodyfat:CONFIG.START_BODYFAT, muscle:CONFIG.START_MUSCLE,
+      jobLvl:0, spouse:-1, gym:-1,
+      diet:-1, work:0, train:1, log:[], finished:false, outcome:'' };
+}
+const age = () => CONFIG.START_AGE + (S.round-1)*CONFIG.YEARS_PER_ROUND;
+const decade = () => Math.floor((S.round-1)/2);
+const baseStress = () => CONFIG.STRESS_BASE_START + CONFIG.STRESS_DECADE_STEP*decade();
+const job = () => CONFIG.JOB_LEVELS[S.jobLvl];
+const barMax = () => Math.round(CONFIG.BASE_BAR + CONFIG.BAR_PER_MUSCLE*S.muscle);
+const usable = () => Math.max(0, barMax() - S.stress);
+const trainMult = () => (S.spouse>=0?CONFIG.SPOUSES[S.spouse].trainMult:1)*(S.gym>=0?CONFIG.GYMS[S.gym].trainMult:1);
+const r1 = n => Math.round(n*10)/10;
 
-function newRun() {
-  S = {
-    round: 1,
-    dollars: CONFIG.STARTING_DOLLARS,
-    energy: CONFIG.STARTING_ENERGY,
-    energyCap: CONFIG.STARTING_ENERGY_CAP,
-    capacity: 1,
-    points: 0,
-    overtime: 0,
-    train: 0,
-    log: [],
-    finished: false,
-    won: false
-  };
+function trainEnergy(i){ return Math.round(CONFIG.TRAINING[i].energy * trainMult()); }
+
+function plan(){
+  const d = S.diet>=0 ? CONFIG.DIETS[S.diet] : {cost:0,energy:0,upfront:0,protein:false};
+  const t = CONFIG.TRAINING[S.train];
+  const ot = Math.max(0, S.work), off = Math.max(0, -S.work);
+
+  const spend = job().energy + d.upfront + ot*CONFIG.OT_ENERGY + trainEnergy(S.train);
+  const intake = d.energy;
+  const balance = intake - spend;                       // + stores, - burns
+
+  let pay = job().pay + ot*CONFIG.OT_PAY - off*CONFIG.TIMEOFF_LOSTPAY;
+  if(S.spouse>=0) pay += CONFIG.SPOUSES[S.spouse].pay;
+  const net = pay - d.cost;
+
+  // bodyfat moves with the energy balance
+  let bf = S.bodyfat + balance / CONFIG.ENERGY_PER_BF_POINT;
+  bf = Math.max(3, Math.round(bf*10)/10);
+
+  // muscle: needs protein AND non-negative balance to build; always decays without training
+  let mus = S.muscle, mNote='';
+  if(t.muscle < 0){ mus += t.muscle; mNote='detraining'; }
+  else if(t.muscle > 0){
+    if(d.protein && balance >= 0){
+      mus += t.muscle + (S.gym>=0?CONFIG.GYMS[S.gym].muscleBonus:0);
+      mNote='building';
+    } else { mNote = !d.protein ? 'no protein — no gain' : 'no surplus energy — no gain'; }
+  } else mNote='maintaining';
+  mus = Math.max(0, mus);
+
+  let st = S.stress + baseStress() + ot*CONFIG.OT_STRESS - off*CONFIG.TIMEOFF_STRESS + t.stress;
+  if(S.spouse>=0) st += CONFIG.SPOUSES[S.spouse].stress;
+  const bfPenalty = (bf > CONFIG.BF_HIGH || bf < CONFIG.BF_LOW);
+  if(bfPenalty) st += CONFIG.BF_PENALTY_STRESS;
+  st = Math.max(0, Math.round(st));
+
+  return {d,t,ot,off,spend,intake,balance,pay,net,bf,mus,mNote,st,bfPenalty};
 }
 
-const rent = r => CONFIG.RENT_START + CONFIG.RENT_GROWTH * (r - 1);
-const recoveryAt = lvl => CONFIG.BASE_RECOVERY_PER_SLEEP_HOUR + CONFIG.RECOVERY_PER_LEVEL * (lvl - 1);
-const round1 = n => Math.round(n * 10) / 10;
-
-// How many hours of overtime+train the day can actually hold, given the
-// invisible personal-time tax and the fact sleep can't drop below its floor.
-function maxDrawHoursByTime() {
-  return Math.max(0, CONFIG.HOURS_PER_DAY - CONFIG.BASELINE_WORK_HOURS
-                     - CONFIG.PERSONAL_TIME_HOURS - CONFIG.SLEEP_MIN);
+function clampWork(){
+  const p0 = () => job().energy + (S.diet>=0?CONFIG.DIETS[S.diet].upfront:0) + trainEnergy(S.train);
+  const room = usable() - p0();
+  const otMax = Math.max(0, Math.min(CONFIG.OVERTIME_MAX, Math.floor(room / CONFIG.OT_ENERGY)));
+  if(S.work > otMax) S.work = otMax;
+  if(S.work < -CONFIG.TIMEOFF_MAX) S.work = -CONFIG.TIMEOFF_MAX;
+  return otMax;
+}
+function maxTrainTier(){
+  const ot = Math.max(0,S.work);
+  const fixed = job().energy + (S.diet>=0?CONFIG.DIETS[S.diet].upfront:0) + ot*CONFIG.OT_ENERGY;
+  let hi = 0;
+  for(let i=0;i<CONFIG.TRAINING.length;i++) if(fixed + trainEnergy(i) <= usable()) hi = i;
+  return hi;
 }
 
-// How many hours of overtime+train the current energy can actually fund.
-function maxDrawHoursByEnergy() {
-  const spendable = Math.max(0, S.energy - CONFIG.BASELINE_ENERGY_COST);
-  return Math.floor(spendable); // 1 energy per hour, either lever
+function commitRound(){
+  const p = plan();
+  S.dollars += p.net;
+  S.bodyfat = p.bf;
+  S.muscle  = p.mus;
+  S.stress  = p.st;
+
+  S.log.unshift('Age '+age()+' \u00b7 '+p.d.name+' \u00b7 '+p.t.name+
+    (p.ot?' \u00b7 OT '+p.ot:'')+(p.off?' \u00b7 off '+p.off:'')+
+    ' \u00b7 '+(p.net>=0?'+':'')+'$'+p.net+
+    ' \u00b7 stress '+p.st+'/'+barMax()+' \u00b7 BF '+r1(p.bf)+'% \u00b7 M '+p.mus);
+  S.log = S.log.slice(0,6);
+
+  if(usable() <= job().energy){ S.finished=true; S.outcome='stress'; return; }
+  S.stage = 'upgrade';
 }
 
-function drawCap() {
-  return Math.max(0, Math.min(maxDrawHoursByTime(), maxDrawHoursByEnergy()));
-}
-
-function clampAlloc() {
-  const cap = drawCap();
-  const otMax = Math.min(CONFIG.OVERTIME_MAX, cap);
-  if (S.overtime > otMax) S.overtime = otMax;
-  if (S.overtime + S.train > cap) S.train = Math.max(0, cap - S.overtime);
-}
-
-// What the current dials would produce, without committing to it.
-function preview() {
-  const drawHours = S.overtime + S.train;
-  const sleepRaw = CONFIG.HOURS_PER_DAY - CONFIG.BASELINE_WORK_HOURS
-                   - CONFIG.PERSONAL_TIME_HOURS - drawHours;
-  const sleep = Math.max(CONFIG.SLEEP_MIN, Math.min(CONFIG.SLEEP_MAX, sleepRaw));
-
-  const earned = CONFIG.BASELINE_DOLLARS + S.overtime * CONFIG.DOLLARS_PER_OVERTIME_HOUR;
-
-  // Training: 0h loses ground, 1h holds, 2h+ builds.
-  let pts = S.points;
-  if (S.train === 0) {
-    pts -= CONFIG.DETRAIN_POINTS_LOSS;
-  } else if (S.train > CONFIG.TRAIN_MAINTAIN_HOURS) {
-    pts += (S.train - CONFIG.TRAIN_MAINTAIN_HOURS) * CONFIG.TRAIN_POINTS_PER_HOUR;
-  }
-
-  let lvl = S.capacity, cap = S.energyCap;
-  while (pts >= CONFIG.TRAIN_POINTS_PER_LEVEL) {
-    pts -= CONFIG.TRAIN_POINTS_PER_LEVEL; lvl += 1; cap += CONFIG.ENERGY_CAP_PER_LEVEL;
-  }
-  while (pts < 0 && lvl > 1) {
-    pts += CONFIG.TRAIN_POINTS_PER_LEVEL; lvl -= 1; cap -= CONFIG.ENERGY_CAP_PER_LEVEL;
-  }
-  if (pts < 0) pts = 0; // floor out at Level 1, can't go negative forever
-
-  const due = rent(S.round);
-  const dollarsAfter = S.dollars + earned - due;
-
-  const energyCostThisRound = CONFIG.BASELINE_ENERGY_COST
-    + S.overtime * CONFIG.ENERGY_PER_OVERTIME_HOUR
-    + S.train * CONFIG.ENERGY_PER_TRAIN_HOUR;
-  const energyAfterActivity = Math.max(0, S.energy - energyCostThisRound);
-  const nextEnergy = Math.min(cap, energyAfterActivity + sleep * recoveryAt(lvl));
-
-  return { sleep, earned, pts, lvl, cap, due, dollarsAfter, energyCostThisRound, nextEnergy };
-}
-
-function setHours(which, val) {
-  const cap = drawCap();
-  if (which === 'overtime') {
-    const otMax = Math.min(CONFIG.OVERTIME_MAX, cap - S.train);
-    S.overtime = Math.max(CONFIG.OVERTIME_MIN, Math.min(val, otMax));
-  } else {
-    const trMax = cap - S.overtime;
-    S.train = Math.max(0, Math.min(val, trMax));
-  }
-  render();
-}
-
-function endRound() {
-  const p = preview();
-
-  S.dollars += p.earned;
-  S.points = p.pts;
-  S.capacity = p.lvl;
-  S.energyCap = p.cap;
-  S.dollars -= p.due;
-
-  S.log.unshift(
-    'R' + S.round + ' \u00b7 OT ' + S.overtime + 'h / train ' + S.train + 'h / sleep ' + p.sleep + 'h' +
-    ' \u00b7 +$' + p.earned + ' \u00b7 rent $' + p.due + ' \u00b7 left $' + S.dollars +
-    ' \u00b7 Lv' + S.capacity + ' \u00b7 E' + round1(Math.max(0, p.nextEnergy))
-  );
-  S.log = S.log.slice(0, 6);
-
-  if (S.dollars < 0) { S.finished = true; S.won = false; render(); return; }
-
-  S.energy = p.nextEnergy;
-  S.round += 1;
-  S.overtime = 0; S.train = 0;
-
-  if (S.round > CONFIG.FINAL_ROUND) { S.finished = true; S.won = true; }
-  render();
-}
-
-function render() {
-  const app = document.getElementById('app');
-
-  if (S.finished) {
-    app.innerHTML =
-      '<div class="over">' +
-        '<div class="verdict">' + (S.won ? 'SURVIVED' : 'BROKE') + '</div>' +
-        '<div class="detail">' +
-          '<div>Ended on round ' + Math.min(S.round, CONFIG.FINAL_ROUND) + ' of ' + CONFIG.FINAL_ROUND + '</div>' +
-          '<div>Final Capacity Level ' + S.capacity + '</div>' +
-          '<div>Dollars ' + S.dollars + '</div>' +
-        '</div>' +
-        '<button class="end" id="again">PLAY AGAIN</button>' +
-        logHTML() +
-      '</div>';
-    document.getElementById('again').onclick = () => { newRun(); render(); };
+function nextRound(){
+  S.round++;
+  if(S.round > CONFIG.ROUNDS){
+    S.finished = true;
+    const healthy = S.bodyfat <= CONFIG.BF_HIGH && S.bodyfat >= CONFIG.BF_LOW && S.muscle >= CONFIG.HEALTHY_MUSCLE_MIN;
+    S.outcome = healthy ? 'retired_well' : 'retired_unwell';
     return;
   }
+  S.diet=-1; S.work=0; S.train=1; S.stage='diet';
+}
 
-  clampAlloc();
-  const p = preview();
-  const cap = drawCap();
-  const otMax = Math.min(CONFIG.OVERTIME_MAX, cap - S.train);
-  const trMax = cap - S.overtime;
-  const lowSleep = p.sleep <= CONFIG.SLEEP_MIN;
-  const detraining = S.train === 0;
+/* ---------------------------------- render ---------------------------------- */
+function render(){
+  const app = document.getElementById('app');
+  if(S.finished){ renderEnd(app); return; }
+  if(S.stage==='diet')    return renderDiet(app);
+  if(S.stage==='alloc')   return renderAlloc(app);
+  if(S.stage==='upgrade') return renderUpgrade(app);
+}
 
-  app.innerHTML =
-    '<h1>Fitness Roguelike v0.1</h1>' +
+function barHTML(spend){
+  const max = barMax(), st = Math.min(S.stress,max);
+  const sp = Math.max(0, Math.min(spend||0, max-st));
+  const slack = Math.max(0, max-st-sp);
+  const pct = v => (v/max*100);
+  return '<div class="top">'+
+    '<div class="agerow"><span>Age '+age()+' \u00b7 Round '+S.round+'/'+CONFIG.ROUNDS+'</span>'+
+      '<b>Stress '+S.stress+' / '+max+'</b></div>'+
+    '<div class="bar">'+
+      '<div class="bStress" style="left:0;width:'+pct(st)+'%"></div>'+
+      '<div class="bSpend"  style="left:'+pct(st)+'%;width:'+pct(sp)+'%"></div>'+
+      '<div class="bSlack"  style="left:'+pct(st+sp)+'%;width:'+pct(slack)+'%"></div>'+
+    '</div>'+
+    '<div class="barkey">'+
+      '<i><span class="sw" style="background:var(--stress)"></span>stress</i>'+
+      '<i><span class="sw" style="background:var(--spend)"></span>energy spent</i>'+
+      '<i><span class="sw" style="background:var(--slack)"></span>unspent \u2192 bodyfat</i>'+
+    '</div></div>';
+}
 
-    '<div class="stats">' +
-      stat('Round', S.round + ' / ' + CONFIG.FINAL_ROUND) +
-      stat('Dollars', '$' + S.dollars) +
-      stat('Capacity', 'Lv ' + S.capacity + '  (' + S.points + '/' + CONFIG.TRAIN_POINTS_PER_LEVEL + ')') +
-      stat('Cap size', S.energyCap + ' max') +
-    '</div>' +
+function statsHTML(){
+  const bad = S.bodyfat>CONFIG.BF_HIGH||S.bodyfat<CONFIG.BF_LOW;
+  return '<div class="stats">'+
+    '<div class="stat"><div class="k">Dollars</div><div class="v">$'+S.dollars+'</div></div>'+
+    '<div class="stat"><div class="k">Job</div><div class="v">'+job().name+'</div></div>'+
+    '<div class="stat"><div class="k">Bodyfat</div><div class="v'+(bad?' bad':'')+'">'+r1(S.bodyfat)+'%</div></div>'+
+    '<div class="stat"><div class="k">Muscle</div><div class="v">'+S.muscle+'</div></div>'+
+  '</div>';
+}
 
-    '<div class="rent"><div class="k">Rent due this round</div><div class="v">$' + p.due + '</div></div>' +
+function renderDiet(app){
+  app.innerHTML = barHTML(0) +
+    '<div class="stagelabel">Stage 1 of 3</div><h2>How do you eat?</h2>' + statsHTML() +
+    CONFIG.DIETS.map((d,i)=>{
+      const afford = S.dollars >= d.cost;
+      return '<div class="card'+(S.diet===i?' sel':'')+(afford?'':' dis')+'" data-d="'+i+'">'+
+        '<div class="ct"><span>'+d.name+'</span><span>$'+d.cost+'</span></div>'+
+        '<div class="cd">'+d.energy+' energy'+(d.upfront?', '+d.upfront+' to prepare':'')+
+        ' \u00b7 '+(d.protein?'enough protein':'low protein')+'<br>'+d.note+'</div></div>';
+    }).join('') +
+    '<button class="go" id="next"'+(S.diet<0?' disabled':'')+'>CONTINUE</button>' + logHTML();
 
-    energyBarHTML(p) +
-
-    '<div class="alloc">' +
-      hourRow('overtime', 'Overtime', S.overtime, otMax, '$' + CONFIG.DOLLARS_PER_OVERTIME_HOUR + ' / hr',
-        'Day job (8h, $' + CONFIG.BASELINE_DOLLARS + ') already worked — this is on top.') +
-      hourRow('train', 'Train', S.train, trMax,
-        S.train === 0 ? 'losing ground' : (S.train === CONFIG.TRAIN_MAINTAIN_HOURS ? 'holding steady' : 'building'),
-        '0h = Capacity slips. 1h = holds. 2h+ = grows.') +
-      '<div class="sleep"><span class="label">Sleep</span>' +
-        '<span class="v' + (lowSleep ? ' warn' : '') + '">' + p.sleep + ' hr</span></div>' +
-    '</div>' +
-
-    '<div class="proj">' +
-      '<div><span>Earn this round</span><b>+$' + p.earned + '</b></div>' +
-      '<div><span>Dollars after rent</span><b>$' + p.dollarsAfter + '</b></div>' +
-      '<div><span>Energy next round</span><b>' + round1(p.nextEnergy) + ' / ' + p.cap + '</b></div>' +
-      (p.cap !== S.energyCap ? '<div><span>Capacity</span><b class="' + (p.cap > S.energyCap ? '' : 'down') + '">Level ' + p.lvl + '</b></div>' : '') +
-    '</div>' +
-
-    '<button class="end" id="endbtn">END ROUND</button>' +
-    logHTML();
-
-  document.getElementById('endbtn').onclick = endRound;
-
-  ['overtime', 'train'].forEach(k => {
-    document.getElementById(k + '-minus').onclick = () => setHours(k, S[k] - 1);
-    document.getElementById(k + '-plus').onclick  = () => setHours(k, S[k] + 1);
-    const sl = document.getElementById(k + '-range');
-    sl.oninput = e => setHours(k, parseInt(e.target.value, 10));
+  document.querySelectorAll('[data-d]').forEach(el=>{
+    const i=+el.dataset.d;
+    if(S.dollars>=CONFIG.DIETS[i].cost) el.onclick=()=>{S.diet=i;render();};
   });
+  document.getElementById('next').onclick=()=>{S.stage='alloc';render();};
 }
 
-function stat(k, v) {
-  return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+function renderAlloc(app){
+  const otMax = clampWork();
+  if(S.train > maxTrainTier()) S.train = maxTrainTier();
+  const p = plan();
+  const tMax = maxTrainTier();
+  const workLabel = S.work>0 ? S.work+'h overtime' : (S.work<0 ? (-S.work)+' wks off' : 'standard');
+
+  app.innerHTML = barHTML(p.spend) +
+    '<div class="stagelabel">Stage 2 of 3</div><h2>Where does the energy go?</h2>' +
+    '<div class="row"><div class="rowhead"><span class="label">Work</span>'+
+      '<span class="yield">'+(S.work>0?'+$'+(S.work*CONFIG.OT_PAY)+', +'+(S.work*CONFIG.OT_STRESS)+' stress'
+        :S.work<0?'-$'+((-S.work)*CONFIG.TIMEOFF_LOSTPAY)+', -'+((-S.work)*CONFIG.TIMEOFF_STRESS)+' stress':'no change')+'</span></div>'+
+      '<div class="ctrl">'+
+        '<button id="w-">&minus;</button>'+
+        '<input type="range" id="w-r" min="'+(-CONFIG.TIMEOFF_MAX)+'" max="'+otMax+'" value="'+S.work+'" step="1">'+
+        '<button id="w+"'+(S.work>=otMax?' disabled':'')+'>+</button>'+
+        '<span class="hrs">'+workLabel+'</span></div>'+
+      '<div class="cd" style="font-size:12px;color:var(--faint);margin-top:2px">Left of centre is time off. Right is overtime.</div></div>'+
+
+    '<div class="row"><div class="rowhead"><span class="label">Training</span>'+
+      '<span class="yield">'+p.t.note+'</span></div>'+
+      CONFIG.TRAINING.map((t,i)=>{
+        const ok = i<=tMax;
+        return '<div class="card'+(S.train===i?' sel':'')+(ok?'':' dis')+'" data-t="'+i+'">'+
+          '<div class="ct"><span>'+t.name+'</span><span>'+trainEnergy(i)+' energy</span></div>'+
+          '<div class="cd">'+(t.stress<0?(-t.stress)+' stress relieved':t.stress>0?'+'+t.stress+' stress':'no stress change')+
+          ' \u00b7 '+(t.muscle>0?'+'+t.muscle+' muscle':t.muscle<0?t.muscle+' muscle':'holds muscle')+'</div></div>';
+      }).join('')+'</div>'+
+
+    '<div class="proj">'+
+      '<div><span>Energy in / out</span><b>'+p.intake+' / '+p.spend+'</b></div>'+
+      '<div><span>Balance</span><b class="'+(p.balance>0?'':'')+'">'+(p.balance>0?'+':'')+p.balance+' \u2192 bodyfat '+r1(p.bf)+'%</b></div>'+
+      '<div><span>Muscle</span><b>'+p.mus+' ('+p.mNote+')</b></div>'+
+      '<div><span>Money this round</span><b>'+(p.net>=0?'+':'')+'$'+p.net+'</b></div>'+
+      '<div><span>Stress after</span><b class="'+(p.st>=barMax()-job().energy?'bad':'')+'">'+p.st+' / '+barMax()+
+        (p.bfPenalty?' (bodyfat penalty)':'')+'</b></div>'+
+    '</div>'+
+    '<button class="go" id="end">LIVE THESE FIVE YEARS</button>'+
+    '<button class="ghost" id="back">back to diet</button>' + logHTML();
+
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const i=+el.dataset.t;
+    if(i<=tMax) el.onclick=()=>{S.train=i;render();};
+  });
+  document.getElementById('w-').onclick=()=>{S.work=Math.max(-CONFIG.TIMEOFF_MAX,S.work-1);render();};
+  document.getElementById('w+').onclick=()=>{S.work=Math.min(otMax,S.work+1);render();};
+  document.getElementById('w-r').oninput=e=>{S.work=parseInt(e.target.value,10);render();};
+  document.getElementById('back').onclick=()=>{S.stage='diet';render();};
+  document.getElementById('end').onclick=()=>{commitRound();render();};
 }
 
-// Decorative bar: light fill = energy you have now. Dark overlay eats into it
-// live as you drag the sliders, so you watch tonight's battery drain as you plan.
-function energyBarHTML(p) {
-  const cap = S.energyCap;
-  const curPct = Math.max(0, Math.min(100, (S.energy / cap) * 100));
-  const spend = Math.min(S.energy, p.energyCostThisRound);
-  const spendPct = Math.max(0, Math.min(100, (spend / cap) * 100));
-  const drainLeft = Math.max(0, curPct - spendPct);
+function renderUpgrade(app){
+  let html = barHTML(0) + '<div class="stagelabel">Stage 3 of 3</div><h2>What changes?</h2>' + statsHTML();
 
-  return '<div class="ebar-wrap">' +
-    '<div class="ebar-head"><span>Energy</span><b>' + round1(S.energy) + ' / ' + cap + '</b></div>' +
-    '<div class="ebar">' +
-      '<div class="fill" style="width:' + curPct + '%"></div>' +
-      '<div class="drain" style="left:' + drainLeft + '%; width:' + spendPct + '%"></div>' +
-    '</div>' +
-  '</div>';
+  const nextJob = CONFIG.JOB_LEVELS[S.jobLvl+1];
+  if(nextJob){
+    const ok = S.dollars >= nextJob.cost;
+    html += '<div class="stagelabel">Career</div>'+
+      '<div class="card'+(ok?'':' dis')+'" data-job="1">'+
+        '<div class="ct"><span>'+nextJob.name+'</span><span>$'+nextJob.cost+'</span></div>'+
+        '<div class="cd">$'+nextJob.pay+' a round \u00b7 costs '+nextJob.energy+' energy \u00b7 +'+nextJob.stress+' stress</div></div>';
+  }
+  if(S.spouse<0){
+    html += '<div class="stagelabel">Partner</div>' + CONFIG.SPOUSES.map((s,i)=>{
+      const ok = S.dollars>=s.cost;
+      return '<div class="card'+(ok?'':' dis')+'" data-sp="'+i+'">'+
+        '<div class="ct"><span>'+s.name+'</span><span>$'+s.cost+'</span></div>'+
+        '<div class="cd">'+s.note+'</div></div>';
+    }).join('');
+  }
+  const nextGym = CONFIG.GYMS[S.gym+1];
+  if(nextGym){
+    const ok = S.dollars>=nextGym.cost;
+    html += '<div class="stagelabel">Gym</div>'+
+      '<div class="card'+(ok?'':' dis')+'" data-gym="1">'+
+        '<div class="ct"><span>'+nextGym.name+'</span><span>$'+nextGym.cost+'</span></div>'+
+        '<div class="cd">'+nextGym.note+'</div></div>';
+  }
+
+  html += '<button class="go" id="next">NEXT FIVE YEARS</button>' + logHTML();
+  app.innerHTML = html;
+
+  const j=document.querySelector('[data-job]');
+  if(j&&nextJob&&S.dollars>=nextJob.cost) j.onclick=()=>{S.dollars-=nextJob.cost;S.jobLvl++;render();};
+  document.querySelectorAll('[data-sp]').forEach(el=>{
+    const i=+el.dataset.sp;
+    if(S.dollars>=CONFIG.SPOUSES[i].cost) el.onclick=()=>{S.dollars-=CONFIG.SPOUSES[i].cost;S.spouse=i;render();};
+  });
+  const g=document.querySelector('[data-gym]');
+  if(g&&nextGym&&S.dollars>=nextGym.cost) g.onclick=()=>{S.dollars-=nextGym.cost;S.gym++;render();};
+  document.getElementById('next').onclick=()=>{nextRound();render();};
 }
 
-function hourRow(id, label, val, max, yield_, note) {
-  const hi = Math.max(0, max);
-  return '<div class="row">' +
-    '<div class="rowhead"><span class="label">' + label + '</span><span class="yield">' + yield_ + '</span></div>' +
-    '<div class="ctrl">' +
-      '<button id="' + id + '-minus"' + (val <= 0 ? ' disabled' : '') + '>&minus;</button>' +
-      '<input type="range" id="' + id + '-range" min="0" max="' + hi + '" value="' + val + '" step="1">' +
-      '<button id="' + id + '-plus"' + (val >= hi ? ' disabled' : '') + '>+</button>' +
-      '<span class="hrs">' + val + 'h</span>' +
-    '</div>' +
-    (note ? '<div class="note">' + note + '</div>' : '') +
-  '</div>';
+function renderEnd(app){
+  const map={
+    stress:['OVERCOME','Stress crowded out everything you had left.'],
+    retired_unwell:['RETIRED','You made it to 70 \u2014 but not in the shape you wanted.'],
+    retired_well:['RETIRED WELL','Seventy, solvent, and strong.']
+  };
+  const [v,sub]=map[S.outcome];
+  app.innerHTML='<div class="over"><div class="verdict">'+v+'</div><div class="sub">'+sub+'</div>'+
+    '<div class="detail">'+
+      '<div>Age '+Math.min(age(),CONFIG.START_AGE+CONFIG.ROUNDS*CONFIG.YEARS_PER_ROUND)+'</div>'+
+      '<div>Stress '+S.stress+' / '+barMax()+'</div>'+
+      '<div>Bodyfat '+r1(S.bodyfat)+'% \u00b7 Muscle '+S.muscle+'</div>'+
+      '<div>Dollars $'+S.dollars+'</div>'+
+      '<div>'+job().name+(S.spouse>=0?' \u00b7 '+CONFIG.SPOUSES[S.spouse].name+' partner':'')+'</div>'+
+    '</div><button class="go" id="again">START OVER</button>'+logHTML()+'</div>';
+  document.getElementById('again').onclick=()=>{newRun();render();};
 }
 
-function logHTML() {
-  if (!S.log.length) return '';
-  return '<div class="log"><h2>Recent rounds</h2>' +
-    S.log.map(l => '<p>' + l + '</p>').join('') + '</div>';
+function logHTML(){
+  if(!S.log.length) return '';
+  return '<div class="log"><h3>Life so far</h3>'+S.log.map(l=>'<p>'+l+'</p>').join('')+'</div>';
 }
 
-newRun();
-render();
+newRun(); render();
 </script>
 </body>
 </html>
