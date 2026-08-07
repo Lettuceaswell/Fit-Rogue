@@ -1,18 +1,18 @@
-# Fit-Rogue — Design Doc (v0.2)
+# Fit-Rogue — Design Doc (v0.2.1)
 
-A single-file, mobile-first, roguelike life-simulator. You play one life from age 20 to 70 in 5-year rounds, allocating a shared energy budget across work, training, and diet while managing an ever-rising stress floor. The game ends in one of three states: crushed by stress, retired unhealthy, or retired well.
+A single-file, mobile-first, roguelike life-simulator. You play one life from age 19 to 67 in 2-year rounds, allocating a shared energy budget across work, training, and diet while managing an ever-rising stress floor. The game ends in one of two states: Crushed by stress, or retired well.
 
 Implementation: `index.html`, plain HTML/CSS/JS, no build step, no dependencies. Prior iterations kept in `versions/` (v0.1.1, v0.1.2, v0.2).
 
 ## Premise / Fantasy
 
-Not a fitness app — a **resource-management roguelike** wearing a "adult life" skin. The tension is the same as a deckbuilder's mana curve: every round you have a fixed pool of *energy* (the bar), and every choice (job, overtime, training intensity, diet) draws from it. Stress is the run-ending resource: it permanently eats into your usable energy pool, and it never goes down on its own — only specific choices push it back.
+Not a fitness app — a **resource-management roguelike** wearing a "fitness" skin. There are two currencies, Energy which you wish you could spend more of, and Cash which you wish you could save. Stress is the run-ending resource: it creeps up naturally each round, applying pressure and spikes with a "boss" every 3rd round, and you must reduce it to zero or beyond with your 'score' each round.
 
 ## Core Loop
 
-One **round = 5 years**, and a run is `CONFIG.ROUNDS` (10) rounds long, aging the player from 20 to 70. Each round has three sequential stages:
+One **round = 2 years**, and a run is `CONFIG.ROUNDS` (24) rounds long, aging the player from 19 to 67. Each round has three sequential stages:
 
-1. **Diet** — pick a food strategy. Sets available energy and a cash cost for the round.
+1. **Status Update** — Fill energy in accordance with your currently held diet. Players always start with "Convenience food" diet card. The Stress Counter is set 
 2. **Allocate** — set work dial (overtime vs. time off) and training intensity within the energy budget; see a live projection of the round's outcome before committing.
 3. **Upgrade** — spend saved dollars on permanent round-over-round bonuses (job promotion, spouse, gym) before advancing.
 
